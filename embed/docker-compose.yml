@@ -1,0 +1,84 @@
+name: llama-cpp-embed
+
+networks:
+  ai-backend:
+    external: true
+  #codex-shared:
+  #  external: true
+
+
+services:
+  llama-cpp-embed:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    environment:
+      # REQUIRED: replace with the EXACT filename you want to serve
+      LLAMA_ARG_EMBEDDINGS: true
+      LLAMA_ARG_POOLING: last
+      #LLAMA_ARG_MODEL: /models/Qwen3-Embedding-0.6B-Q8_0.gguf  # EMBED DIM: 1024
+      #LLAMA_ARG_MODEL: /models/jina-embeddings-v5-omni-small-retrieval-Q6_K.gguf  # 1024
+
+      #LLAMA_ARG_MODEL: /models/jina-embeddings-v5-omni-small-retrieval-IQ4_NL.gguf  # 1024
+      #LLAMA_ARG_MMPROJ: /models/jina-embeddings-v5-omni-small-retrieval-vision-mmproj-F16.gguf
+
+      #LLAMA_ARG_MODEL: /models/jina-embeddings-v5-omni-small-retrieval-Q6_K.gguf
+
+      LLAMA_ARG_MODEL:  /models/jina-embeddings-v5-omni-nano-retrieval-Q6_K.gguf  # 768
+      LLAMA_ARG_MMPROJ: /models/jina-embeddings-v5-omni-nano-retrieval-vision-mmproj-F16.gguf
+
+      LLAMA_ARG_CTX_SIZE: 8192
+
+      LLAMA_ARG_ALIAS: swol-doge
+
+
+      #LLAMA_API_KEY: ayyylmao  # just some bullshit dummy key
+
+      LLAMA_ARG_JINJA: true
+
+      # server bind / API shit
+      LLAMA_ARG_HOST: 0.0.0.0
+      LLAMA_ARG_PORT: 8081
+
+      LLAMA_ARG_N_PARALLEL: 1
+      LLAMA_ARG_N_GPU_LAYERS: auto  # --n-gpu-layers
+
+      # NUMBER OF GPU DEVICES TO USE
+      # ============================
+      # `--split-mode`
+      # how to split model across multuiple gpus, opts:
+      #     none :  use one gpu only
+      #     layer : (DEFAULT) split layers and KV across gpus
+      #     row :   split rows across GPus
+      LLAMA_ARG_SPLIT_MODE: none  # --split-mode
+
+      # which gpu ID to select (when split mode is none and multiple gpu avail)
+      # i have dual gpu ('cuda:0', 'cuda:1'), so i set to the second for
+      # single-gpu use
+      LLAMA_ARG_MAIN_GPU: 0 # --main-gpu
+
+      # optional metrics endpoint
+      LLAMA_ARG_ENDPOINT_METRICS: 1
+
+    volumes:
+      # bind directly to usert space GGUF models dir (read-only)
+      - /home/evan/Models/GGUFZ:/models:ro
+
+    ipc: host
+    ports:
+      - "127.0.0.1:8081:8081"
+
+    healthcheck:
+      disable: true
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0', '1']
+              capabilities: [gpu]
+
+    networks:
+      - ai-backend
+      #- codex-shared
+
+    restart: unless-stopped

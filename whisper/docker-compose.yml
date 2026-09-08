@@ -1,0 +1,131 @@
+name: llama-cpp-speech
+
+# OpenAI-compatible Whisper/STT endpoint
+# ======================================
+#
+# INTERNAL OPEN WEBUI URL:
+#   http://llama-cpp-speech:8195/v1
+#
+# OPENAI-COMPATIBLE TRANSCRIPTION ENDPOINT:
+#   http://llama-cpp-speech:8195/v1/audio/transcriptions
+#
+# HOST TEST URL:
+#   http://127.0.0.1:8195/v1/audio/transcriptions
+#
+# SERVING:
+#   Usually not needed. Open WebUI should call this over Docker DNS.
+#
+# Optional Tailscale API exposure:
+#   tailscale serve --bg --https=443 --set-path=/speech http://127.0.0.1:8195
+#   ACCESS: https://your-tailnet.ts.net/speech/v1/audio/transcriptions
+
+networks:
+  ai-backend:
+    external: true
+
+services:
+  llama-cpp-speech:
+    image: ghcr.io/ggml-org/whisper.cpp:main-cuda
+    container_name: llama-cpp-speech
+    restart: unless-stopped
+    entrypoint:
+      - whisper-server
+    command:
+      # Bind inside container
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8195"
+
+      # --- CPU-default behavior ---
+      # Keep this enabled for CPU inference.
+      # To enable CUDA, comment this out.
+      #- --no-gpu
+
+      # --- CPU tuning (Ryzen 9 7950x) ---
+      # 7950X = 16 physical cores / 32 SMT threads.
+      # Good baseline: 12.
+      # Try: 8, 12, 16.
+      # Avoid 32 unless benchmarking proves it helps.
+      - --threads
+      - "12"
+
+      # --- Model selection ---
+      # MEDIUM
+      #- --model
+      #- /models/whisper/ggml-large-v3-turbo-q5_0.bin
+
+      # BIG
+      - --model
+      - /models/whisper/ggml-large-v3-turbo-q8_0.bin
+
+      # SMALL
+      #- --model
+      #- /models/whisper/ggml-small.en-q5_1.bin
+
+      # --- Transcription behavior ---
+      # ENGLISH (and *.en models), explicit:
+      - --language
+      - en
+      # multilingual
+      #- --language
+      #- auto
+
+      # convert browser-uploaded audio formats via ffmpeg
+      - --convert
+      - --tmp-dir
+      - /tmp
+
+      # Avoid context bleed between short Open WebUI clips.
+      - --max-context
+      - "0"
+
+      # Return cleaner text instead of segment/timestamp-style output.
+      - --no-timestamps
+
+      # Optional: suppress literal non-speech tokens.
+      # - --suppress-nst
+
+      # --- OpenAI-compatible route shape ---
+      - --request-path
+      - /v1/audio
+      - --inference-path
+      - /transcriptions
+
+    environment:
+      # **IMPORTANT NOTE**:
+      # GPU/CUDA fix for ghcr.io/ggml-org/whisper.cpp:main-cuda:
+      # upstream prepends /usr/local/cuda-13.0/compat to LD_LIBRARY_PATH.
+      # On this host that made whisper.cpp load the image's CUDA compat libs first,
+      # causing `ggml_cuda_init: unsupported display driver / cuda driver combination`
+      # even though Docker GPU passthrough and nvidia-smi worked inside the container.
+      # Force host-mounted NVIDIA driver libs to the front so CUDA init uses the real
+      # host driver stack.
+      # DO NOT REMOVE unless GPU transcription is re-tested.
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64:/usr/local/cuda-13.0/lib64
+
+    volumes:
+      - /home/evan/Models/GGUFZ:/models:ro
+      #- /home/evan/Models/GGUFZ/whisper:/fuckyou/whisper:ro
+
+    ports:
+      - "127.0.0.1:8195:8195"
+
+    networks:
+      - ai-backend
+
+    healthcheck:
+      disable: true
+
+    # option guardrail: keep some CPU headroom for Open WebUI, Docker, browser,
+    # llama.cpp, etc. This limits CPU time but does not pin cores.
+    cpus: "14.0"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]

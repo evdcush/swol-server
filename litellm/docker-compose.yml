@@ -1,0 +1,96 @@
+name: litellm
+
+# Start:
+#   docker compose -f litellm.compose.yaml up -d
+#
+# Docker apps:  OPENAI_API_BASE_URL=http://litellm:4000/v1
+# Host apps:    OPENAI_API_BASE_URL=http://127.0.0.1:4000/v1
+# Tailscale:
+#   tailscale serve --bg --https=443 --set-path=/v1 http://127.0.0.1:4000/v1
+#   OPENAI_API_BASE_URL=https://mytailnet.ts.net/v1
+#
+# Native groups: swol-doge (chat), swol-doge-embed (embeddings), whisper-1 (STT)
+
+networks:
+  ai-backend:
+    external: true
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:latest #v1.89.0
+    container_name: litellm
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    configs:
+      - source: litellm-config
+        target: /app/config.yaml
+    ports:
+      - "127.0.0.1:4000:4000"
+    networks:
+      - ai-backend
+    #healthcheck:
+    #  test:
+    #    - CMD-SHELL
+    #    - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness')"
+    #  interval: 30s
+    #  timeout: 10s
+    #  retries: 3
+    #  start_period: 30s
+    healthcheck:
+      disable: true
+
+configs:
+  litellm-config:
+    content: |
+      model_list:
+        - model_name: swol-doge
+          litellm_params:
+            model: openai/swol-doge
+            api_base: http://llama-cpp:8080/v1
+            api_key: none
+          model_info:
+            mode: chat
+
+        - model_name: swol-doge-embed
+          litellm_params:
+            model: openai/swol-doge
+            api_base: http://llama-cpp-embed:8081/v1
+            api_key: none
+          model_info:
+            mode: embedding
+
+        - model_name: whisper-1
+          litellm_params:
+            model: openai/whisper-1
+            api_base: http://llama-cpp-speech:8195/v1
+            api_key: none
+          model_info:
+            mode: audio_transcription
+
+      litellm_settings:
+        drop_params: true
+
+      router_settings:
+        model_group_alias:
+          # common served model -> local chat model group
+          gpt-5.5: swol-doge
+          gpt-5.5-pro: swol-doge
+          gpt-5.4: swol-doge
+          gpt-5.4-mini: swol-doge
+          gpt-5.4-nano: swol-doge
+          claude-opus-4.8: swol-doge
+          claude-sonnet-4.6: swol-doge
+          claude-haiku-4.5: swol-doge
+          glm-5.2: swol-doge
+          glm-5.1: swol-doge
+          gemma-4-31b: swol-doge
+          gemma-4-26b: swol-doge
+          qwen3.6-plus: swol-doge
+          deepseek-v4-pro: swol-doge
+          deepseek-v4-flash: swol-doge
+          mistral-large: swol-doge
+          mistral-medium-3.5: swol-doge
+          kimi-k2.6: swol-doge
+          minimax-m2.7: swol-doge
+
+          text-embedding-3-small: swol-doge-embed

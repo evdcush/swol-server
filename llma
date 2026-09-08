@@ -1,0 +1,963 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+
+SERVICE = "llama-cpp"
+DEFAULT_CTX = 65536
+PICK_TIMEOUT = 4
+
+GEMMA_SAMPLING = (1.0, 0.95, 64)
+#QWEN_SAMPLING = (0.75, 0.95, 20)  # (1.0, 0.95, 20)  # for 3.8
+QWEN_SAMPLING = (1.0, 0.95, 20)  # for 3.8
+OTHER_SAMPLING = (0.75, 0.95, 33)
+
+# These are the only llama.cpp env keys llma owns.
+OWNED_ENV = {
+    "LLAMA_ARG_MODEL",
+    "LLAMA_ARG_MMPROJ",
+    "LLAMA_ARG_SPEC_DRAFT_MODEL",
+    "LLAMA_ARG_CHAT_TEMPLATE_FILE",
+    "LLAMA_ARG_SPEC_TYPE",
+    "LLAMA_ARG_SPEC_DRAFT_N_MAX",
+    "LLAMA_ARG_CTX_SIZE",
+}
+
+
+@dataclass(frozen=True)
+class Model:
+    key: str
+    label: str
+    family: str
+    model: str
+    sampling: tuple[float, float, int]
+    mmproj: str | None = None
+    mtp: str | None = None
+    mtp_inline: bool = False
+    chat_template: str | None = None
+    mtp_nmax: int = 2
+
+    @property
+    def has_mtp(self) -> bool:
+        return bool(self.mtp or self.mtp_inline)
+
+
+GEMMA = [
+    Model(
+        "g26",
+        "26B A4B MXFP4 MOE  [default]",
+        "gemma",
+        "/models/gemma-4/gemma-4-26B-A4B-it-MXFP4_MOE.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/gemma-4-26B-A4B-mmproj-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-26B-A4B-it.gguf",
+        chat_template="/models/gemma-4/chat_template-26B-A4B-it.jinja",
+        mtp_nmax=2,
+    ),
+    Model(
+        "g26q4",
+        "26B A4B UD Q4_K_XL",
+        "gemma",
+        "/models/gemma-4/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/gemma-4-26B-A4B-mmproj-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-26B-A4B-it.gguf",
+        chat_template="/models/gemma-4/chat_template-26B-A4B-it.jinja",
+        mtp_nmax=2,
+    ),
+    Model(
+        "g31",
+        "31B QAT UD Q4_K_XL",
+        "gemma",
+        "/models/gemma-4/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/gemma-4-31B-it-MTP_mmproj-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-31B-it-Q8_0.gguf",
+        chat_template="/models/gemma-4/chat_template-31B-it.jinja",
+        mtp_nmax=2,
+    ),
+    Model(
+        "g31q6",
+        "31B Q6_K",
+        "gemma",
+        "/models/gemma-4/gemma-4-31B-it-Q6_K.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/gemma-4-31B-it-MTP_mmproj-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-31B-it-Q8_0.gguf",
+        chat_template="/models/gemma-4/chat_template-31B-it.jinja",
+        mtp_nmax=2,
+    ),
+    Model(
+        "g31q5",
+        "31B UD Q5_K_XL",
+        "gemma",
+        "/models/gemma-4/gemma-4-31B-it-UD-Q5_K_XL.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/gemma-4-31B-it-MTP_mmproj-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-31B-it-Q8_0.gguf",
+        chat_template="/models/gemma-4/chat_template-31B-it.jinja",
+        mtp_nmax=2,
+    ),
+    Model(
+        "g31q4",
+        "31B UD Q4_K_XL",
+        "gemma",
+        "/models/gemma-4/gemma-4-31B-it-UD-Q4_K_XL.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/gemma-4-31B-it-MTP_mmproj-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-31B-it-Q8_0.gguf",
+        chat_template="/models/gemma-4/chat_template-31B-it.jinja",
+        mtp_nmax=2,
+    ),
+    Model(
+        "g12",
+        "12B QAT UD Q4_K_XL",
+        "gemma",
+        "/models/gemma-4/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
+        GEMMA_SAMPLING,
+        mmproj="/models/gemma-4/mmproj-gemma-4-12B-it-QAT-BF16.gguf",
+        mtp="/models/gemma-4/mtp-gemma-4-12B-it.gguf",
+        chat_template="/models/gemma-4/chat_template.jinja",
+        mtp_nmax=2,
+    ),
+]
+
+QWEN = [
+    Model(
+        "q3827q5",
+        "3.8 27B Q5_K_S MTP",
+        "qwen",
+        "/models/Qwen3.8-27B-UD-Q5_K_S.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-BF16-Qwen3.8-27B.gguf",
+        mtp="/models/mtp-Qwen3.8-27B-Q4_0.gguf",
+        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        mtp_nmax=4,
+    ),
+    Model(
+        "q27",
+        "27B Q6_K MTP  [default]",
+        "qwen",
+        "/models/Qwen3.6-27B-Q6_K.MTP.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-27B-Q6_K.MTP.gguf",
+        mtp_inline=True,
+        mtp_nmax=4,
+    ),
+    Model(
+        "q27q5",
+        "27B Q5_K_S MTP",
+        "qwen",
+        "/models/Qwen3.6-27B-Q5_K_S.MTP.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-27B-Q6_K.MTP.gguf",
+        mtp_inline=True,
+        mtp_nmax=4,
+    ),
+    Model(
+        "q27iq4",
+        "27B IQ4_NL MTP",
+        "qwen",
+        "/models/Qwen3.6-27B-IQ4_NL.MTP.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-27B-Q6_K.MTP.gguf",
+        mtp_inline=True,
+        mtp_nmax=4,
+    ),
+    Model(
+        "q35",
+        "35B-A3B MXFP4 MOE MTP",
+        "qwen",
+        "/models/Qwen3.6-35B-A3B-MXFP4_MOE.MTP.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf",
+        mtp_inline=True,
+        mtp_nmax=6,
+    ),
+    Model(
+        "q27u6",
+        "27B Uncensored Q6_K_P",
+        "qwen",
+        "/models/Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q6_K_P.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-f16.gguf",
+    ),
+    Model(
+        "q27u4",
+        "27B Uncensored Q4_K_P",
+        "qwen",
+        "/models/Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-f16.gguf",
+    ),
+    Model(
+        "q35u",
+        "35B-A3B Uncensored Q4_K_M",
+        "qwen",
+        "/models/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf",
+    ),
+]
+
+
+def die(message: str, code: int = 1) -> None:
+    print(f"llma: {message}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def compose_file() -> Path:
+    if value := os.getenv("LLMA_COMPOSE"):
+        path = Path(value).expanduser().resolve()
+        if not path.is_file():
+            die(f"LLMA_COMPOSE does not exist: {path}")
+        return path
+
+    root = Path(__file__).resolve().parent
+    for name in (
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "compose.yml",
+        "compose.yaml",
+    ):
+        path = root / name
+        if path.is_file():
+            return path
+
+    candidates = sorted(
+        p
+        for p in root.iterdir()
+        if p.is_file()
+        and "compose" in p.name.lower()
+        and p.suffix.lower() in {".yml", ".yaml"}
+    )
+
+    if len(candidates) == 1:
+        return candidates[0]
+
+    die(
+        "put llma beside the Compose file, or set "
+        "LLMA_COMPOSE=/path/to/docker-compose.yml"
+    )
+    raise AssertionError
+
+
+def run(
+    cmd: list[str], *, capture: bool = False
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            cmd,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE if capture else None,
+            stderr=subprocess.PIPE if capture else None,
+        )
+    except FileNotFoundError:
+        die(f"command not found: {cmd[0]}")
+    except subprocess.CalledProcessError as exc:
+        if capture and exc.stderr:
+            print(exc.stderr.rstrip(), file=sys.stderr)
+        raise SystemExit(exc.returncode)
+
+    raise AssertionError
+
+
+def resolved_compose(base: Path) -> dict:
+    result = run(
+        [
+            "docker",
+            "compose",
+            "--project-directory",
+            str(base.parent),
+            "-f",
+            str(base),
+            "config",
+            "--format",
+            "json",
+        ],
+        capture=True,
+    )
+
+    try:
+        config = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        die(f"could not parse `docker compose config --format json`: {exc}")
+
+    if SERVICE not in config.get("services", {}):
+        die(f"Compose has no service named {SERVICE!r}")
+
+    return config
+
+
+def host_models_root(config: dict) -> Path | None:
+    for mount in config["services"][SERVICE].get("volumes", []):
+        if (
+            isinstance(mount, dict)
+            and mount.get("target") == "/models"
+            and mount.get("type") == "bind"
+        ):
+            source = mount.get("source")
+            return Path(source) if source else None
+
+    return None
+
+
+def pick_one(
+    title: str,
+    options: list[str],
+    default: int = 0,
+    timeout: int = PICK_TIMEOUT,
+) -> int:
+    """
+    Select one option.
+
+    IMPORTANT:
+    The timeout exists ONLY while the user has provided ZERO input.
+
+    - No input for `timeout` seconds -> return default.
+    - ANY keypress -> timeout is permanently disabled for this menu.
+    - After the first keypress, input blocks forever until the user selects/cancels.
+    """
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return default
+
+    import curses
+
+    def menu(stdscr) -> int:
+        try:
+            curses.curs_set(0)
+        except curses.error:
+            pass
+
+        stdscr.keypad(True)
+
+        index = default
+        waiting_for_first_input = True
+
+        while True:
+            height, width = stdscr.getmaxyx()
+            visible_rows = max(1, height - 2)
+
+            if len(options) <= visible_rows:
+                start = 0
+            else:
+                start = max(
+                    0,
+                    min(
+                        index - visible_rows // 2,
+                        len(options) - visible_rows,
+                    ),
+                )
+
+            end = min(len(options), start + visible_rows)
+
+            stdscr.erase()
+
+            if waiting_for_first_input:
+                suffix = (
+                    f"   [Enter = select; default in {timeout}s if idle]"
+                )
+            else:
+                suffix = "   [Enter = select]"
+
+            try:
+                stdscr.addnstr(
+                    0,
+                    0,
+                    title + suffix,
+                    max(1, width - 1),
+                )
+            except curses.error:
+                pass
+
+            for row, option_index in enumerate(range(start, end), start=1):
+                marker = "› " if option_index == index else "  "
+
+                try:
+                    stdscr.addnstr(
+                        row,
+                        0,
+                        marker + options[option_index],
+                        max(1, width - 1),
+                    )
+                except curses.error:
+                    pass
+
+            stdscr.refresh()
+
+            if waiting_for_first_input:
+                # ONLY the initial idle state has a timeout.
+                stdscr.timeout(timeout * 1000)
+            else:
+                # Once ANY input happened, wait indefinitely.
+                stdscr.timeout(-1)
+
+            key = stdscr.getch()
+
+            if key == -1:
+                # The only possible timeout is before the first input.
+                if waiting_for_first_input:
+                    return default
+
+                # Defensive only; blocking mode should never return -1.
+                continue
+
+            # ANY keypress permanently kills the timeout.
+            waiting_for_first_input = False
+            stdscr.timeout(-1)
+
+            if key in (curses.KEY_ENTER, 10, 13):
+                return index
+
+            if key in (curses.KEY_UP, ord("k")):
+                index = (index - 1) % len(options)
+
+            elif key in (curses.KEY_DOWN, ord("j")):
+                index = (index + 1) % len(options)
+
+            elif key == curses.KEY_HOME:
+                index = 0
+
+            elif key == curses.KEY_END:
+                index = len(options) - 1
+
+            elif key == 27:
+                raise KeyboardInterrupt
+
+    return curses.wrapper(menu)
+
+
+def choose_family() -> str:
+    options = [
+        "DEFAULT — Gemma 4 26B A4B + MMPROJ + MTP",
+        "Gemma 4…",
+        "Qwen 3.6…",
+        "Other model…",
+    ]
+
+    return ("default", "gemma", "qwen", "other")[
+        pick_one("llma up", options)
+    ]
+
+
+def choose_model(models: list[Model], title: str) -> Model:
+    return models[pick_one(title, [m.label for m in models])]
+
+
+def choose_other(root: Path | None) -> Model:
+    files: list[Path] = []
+
+    if root and root.is_dir():
+        files = sorted(
+            p
+            for p in root.rglob("*.gguf")
+            if "mmproj" not in p.name.lower()
+            and not p.name.lower().startswith("mtp-")
+        )
+
+    if not files:
+        if not sys.stdin.isatty():
+            die("no selectable models found under the /models bind mount")
+
+        raw = input("Model path inside container (/models/...): ").strip()
+
+        if not raw:
+            die("no model selected")
+
+        model_path = (
+            raw
+            if raw.startswith("/models/")
+            else f"/models/{raw.lstrip('/')}"
+        )
+        label = Path(model_path).name
+
+    else:
+        labels = [str(p.relative_to(root)) for p in files]
+
+        idx = pick_one(
+            "Other model",
+            labels,
+            timeout=8,
+        )
+
+        model_path = "/models/" + labels[idx]
+        label = labels[idx]
+
+    inline_mtp = (
+        ".mtp." in model_path.lower()
+        or model_path.lower().endswith(".mtp.gguf")
+    )
+
+    return Model(
+        "other",
+        label,
+        "other",
+        model_path,
+        OTHER_SAMPLING,
+        mtp_inline=inline_mtp,
+        mtp_nmax=4 if inline_mtp else 2,
+    )
+
+
+def available_extras(model: Model) -> list[tuple[str, str]]:
+    has_mm = bool(model.mmproj)
+    has_mtp = model.has_mtp
+
+    if has_mm and has_mtp:
+        return [
+            ("both", "MMPROJ + MTP  [default]"),
+            ("mmproj", "MMPROJ only"),
+            ("mtp", "MTP only"),
+            ("none", "Neither"),
+        ]
+
+    if has_mm:
+        return [
+            ("mmproj", "MMPROJ  [default]"),
+            ("none", "Neither"),
+        ]
+
+    if has_mtp:
+        return [
+            ("mtp", "MTP  [default]"),
+            ("none", "Neither"),
+        ]
+
+    return [("none", "Neither")]
+
+
+def choose_extras(model: Model) -> str:
+    options = available_extras(model)
+
+    if len(options) == 1:
+        return options[0][0]
+
+    idx = pick_one(
+        "Extras",
+        [label for _key, label in options],
+    )
+
+    return options[idx][0]
+
+
+def container_to_host(
+    path: str,
+    root: Path | None,
+) -> Path | None:
+    if not root or not path.startswith("/models/"):
+        return None
+
+    return root / path.removeprefix("/models/")
+
+
+def validate_config_paths(
+    config: dict,
+    root: Path | None,
+) -> None:
+    env = config["services"][SERVICE].get("environment", {})
+
+    wanted = [
+        ("model", env.get("LLAMA_ARG_MODEL")),
+        ("chat template", env.get("LLAMA_ARG_CHAT_TEMPLATE_FILE")),
+        ("mmproj", env.get("LLAMA_ARG_MMPROJ")),
+        ("mtp", env.get("LLAMA_ARG_SPEC_DRAFT_MODEL")),
+    ]
+
+    missing = []
+
+    for kind, path in wanted:
+        if not path:
+            continue
+
+        host = container_to_host(path, root)
+
+        if host is not None and not host.is_file():
+            missing.append(f"{kind}: {host}")
+
+    if missing:
+        die("missing file(s):\n  " + "\n  ".join(missing))
+
+
+def apply(
+    config: dict,
+    model: Model,
+    extras: str,
+    args: argparse.Namespace,
+) -> None:
+    service = config["services"][SERVICE]
+    env = service.setdefault("environment", {})
+
+    if not isinstance(env, dict):
+        die("normalized Compose environment is not a mapping")
+
+    # Remove stale values inherited from whichever model is currently
+    # uncommented in the source Compose file.
+    for key in OWNED_ENV:
+        env.pop(key, None)
+
+    temp = (
+        args.temp
+        if args.temp is not None
+        else model.sampling[0]
+    )
+    top_p = (
+        args.top_p
+        if args.top_p is not None
+        else model.sampling[1]
+    )
+    top_k = (
+        args.top_k
+        if args.top_k is not None
+        else model.sampling[2]
+    )
+
+    service["command"] = [
+        "--temp",
+        str(temp),
+        "--top-p",
+        str(top_p),
+        "--top-k",
+        str(top_k),
+    ]
+
+    env["LLAMA_ARG_MODEL"] = model.model
+    if args.ctx is not None:
+        ctx = str(args.ctx)
+        env["LLAMA_ARG_CTX_SIZE"] = ctx
+    #env["LLAMA_ARG_CTX_SIZE"] = str(args.ctx or DEFAULT_CTX)
+
+    chat_template = args.chat_template or model.chat_template
+    mmproj = args.mmproj or model.mmproj
+    mtp = args.mtp or model.mtp
+
+    if chat_template:
+        env["LLAMA_ARG_CHAT_TEMPLATE_FILE"] = chat_template
+
+    if extras in {"both", "mmproj"}:
+        if not mmproj:
+            die(
+                "MMPROJ selected but this model "
+                "has no MMPROJ configured"
+            )
+
+        env["LLAMA_ARG_MMPROJ"] = mmproj
+
+    if extras in {"both", "mtp"}:
+        if not (mtp or model.mtp_inline):
+            die(
+                "MTP selected but this model "
+                "has no MTP configured"
+            )
+
+        if mtp:
+            env["LLAMA_ARG_SPEC_DRAFT_MODEL"] = mtp
+
+        env["LLAMA_ARG_SPEC_TYPE"] = "draft-mtp"
+        env["LLAMA_ARG_SPEC_DRAFT_N_MAX"] = str(
+            args.mtp_nmax or model.mtp_nmax
+        )
+
+
+def up(
+    base: Path,
+    args: argparse.Namespace,
+) -> None:
+    config = resolved_compose(base)
+    root = host_models_root(config)
+
+    if args.model:
+        model = Model(
+            "custom",
+            Path(args.model).name,
+            "other",
+            args.model,
+            OTHER_SAMPLING,
+            mmproj=args.mmproj,
+            mtp=args.mtp,
+            mtp_inline=args.mtp_inline,
+            chat_template=args.chat_template,
+            mtp_nmax=args.mtp_nmax or 2,
+        )
+
+        extras = args.extras or (
+            "both"
+            if (model.mmproj and model.has_mtp)
+            else "mmproj"
+            if model.mmproj
+            else "mtp"
+            if model.has_mtp
+            else "none"
+        )
+
+    else:
+        if args.default:
+            family = "default"
+
+        elif args.gemma:
+            family = "gemma"
+
+        elif args.qwen:
+            family = "qwen"
+
+        else:
+            family = choose_family()
+
+        if family == "default":
+            model = GEMMA[0]
+            extras = args.extras or "both"
+
+        elif family == "gemma":
+            model = choose_model(
+                GEMMA,
+                "Gemma 4 model",
+            )
+            extras = args.extras or choose_extras(model)
+
+        elif family == "qwen":
+            model = choose_model(
+                QWEN,
+                "Qwen 3.6 model",
+            )
+            extras = args.extras or choose_extras(model)
+
+        else:
+            model = choose_other(root)
+
+            if args.mmproj or args.mtp:
+                model = Model(
+                    model.key,
+                    model.label,
+                    model.family,
+                    model.model,
+                    model.sampling,
+                    mmproj=args.mmproj,
+                    mtp=args.mtp,
+                    mtp_inline=(
+                        model.mtp_inline
+                        or args.mtp_inline
+                    ),
+                    chat_template=args.chat_template,
+                    mtp_nmax=(
+                        args.mtp_nmax
+                        or model.mtp_nmax
+                    ),
+                )
+
+            extras = args.extras or choose_extras(model)
+
+    apply(
+        config,
+        model,
+        extras,
+        args,
+    )
+
+    validate_config_paths(
+        config,
+        root,
+    )
+
+    sampler = config["services"][SERVICE]["command"]
+
+    print(
+        f"→ {model.label} | "
+        f"{extras} | "
+        #f"ctx={args.ctx or DEFAULT_CTX} | "
+        f"ctx={args.ctx}"
+        f"temp={sampler[1]} "
+        f"top-p={sampler[3]} "
+        f"top-k={sampler[5]}"
+    )
+
+    # JSON is valid Compose input. Use the resolved config so the original
+    # Compose remains untouched while stale model-specific settings can
+    # actually be removed.
+    fd, name = tempfile.mkstemp(
+        prefix="llma-",
+        suffix=".json",
+    )
+
+    try:
+        with os.fdopen(
+            fd,
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            json.dump(config, handle)
+
+        run(
+            [
+                "docker",
+                "compose",
+                "--project-directory",
+                str(base.parent),
+                "-f",
+                name,
+                "up",
+                "-d",
+                "--force-recreate",
+                SERVICE,
+            ]
+        )
+
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
+def down(base: Path) -> None:
+    run(
+        [
+            "docker",
+            "compose",
+            "--project-directory",
+            str(base.parent),
+            "-f",
+            str(base),
+            "down",
+        ]
+    )
+
+
+def parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="llma",
+        description="Tiny llama.cpp model launcher",
+    )
+
+    sub = p.add_subparsers(
+        dest="cmd",
+        required=True,
+    )
+
+    u = sub.add_parser(
+        "up",
+        help="choose a model and start llama.cpp",
+    )
+
+    family = u.add_mutually_exclusive_group()
+
+    family.add_argument(
+        "-d",
+        "-default",
+        "--default",
+        action="store_true",
+        help="use default Gemma 4 26B profile; no picker",
+    )
+
+    family.add_argument(
+        "-g",
+        "-gemma",
+        "--gemma",
+        action="store_true",
+        help="jump to Gemma model picker",
+    )
+
+    family.add_argument(
+        "-q",
+        "-qwen",
+        "--qwen",
+        action="store_true",
+        help="jump to Qwen model picker",
+    )
+
+    u.add_argument(
+        "--ctx",
+        type=int,
+        metavar="N",
+        default=None,
+        #help=f"context size (default {DEFAULT_CTX})",
+        help=f"context size (default none)",
+    )
+
+    u.add_argument(
+        "--extras",
+        choices=("both", "mmproj", "mtp", "none"),
+        help="skip extras picker",
+    )
+
+    # Rare escape hatches.
+    u.add_argument(
+        "--model",
+        metavar="/models/FILE.gguf",
+        help="use exact model path; skips model picker",
+    )
+
+    u.add_argument(
+        "--mmproj",
+        metavar="/models/FILE.gguf",
+    )
+
+    u.add_argument(
+        "--mtp",
+        metavar="/models/FILE.gguf",
+        help="separate MTP draft model",
+    )
+
+    u.add_argument(
+        "--mtp-inline",
+        action="store_true",
+        help="selected model contains its own MTP weights",
+    )
+
+    u.add_argument(
+        "--mtp-nmax",
+        type=int,
+    )
+
+    u.add_argument(
+        "--chat-template",
+        metavar="/models/FILE.jinja",
+    )
+
+    u.add_argument(
+        "--temp",
+        type=float,
+    )
+
+    u.add_argument(
+        "--top-p",
+        type=float,
+    )
+
+    u.add_argument(
+        "--top-k",
+        type=int,
+    )
+
+    sub.add_parser(
+        "down",
+        help="docker compose down",
+    )
+
+    return p
+
+
+def main() -> int:
+    args = parser().parse_args()
+    base = compose_file()
+
+    try:
+        if args.cmd == "up":
+            up(base, args)
+        else:
+            down(base)
+
+    except KeyboardInterrupt:
+        print(
+            "\nllma: cancelled",
+            file=sys.stderr,
+        )
+        return 130
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
