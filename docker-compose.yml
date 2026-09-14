@@ -15,10 +15,10 @@ services:
     #  --top-k 20
 
     # gemma-4 settings
-    #command: >
-    #  --temp 1.0
-    #  --top-p 0.95
-    #  --top-k 64
+    command: >
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
 
     #command: >
     #  --temp 0.4
@@ -26,10 +26,10 @@ services:
     #  --top-k 27
 
     # qwen3.8
-    command: >
-      --temp 1.0
-      --top-p 0.95
-      --top-k 20
+    #command: >
+    #  --temp 1.0
+    #  --top-p 0.95
+    #  --top-k 20
 
     environment:
       # REQUIRED: replace with the EXACT filename you want to serve
@@ -43,12 +43,12 @@ services:
       #LLAMA_ARG_MODEL: /models/gemma-4/gemma-4-12b-it-UD-Q8_K_XL.gguf
 
       #--------------------------  GEMMA-4-26B-A4B  --------------------------#
-      #LLAMA_ARG_MODEL: /models/gemma-4/gemma-4-26B-A4B-it-MXFP4_MOE.gguf
-      #LLAMA_ARG_CHAT_TEMPLATE_FILE: /models/gemma-4/chat_template-26B-A4B-it.jinja
+      LLAMA_ARG_MODEL: /models/gemma-4/gemma-4-26B-A4B-it-MXFP4_MOE.gguf
+      LLAMA_ARG_CHAT_TEMPLATE_FILE: /models/gemma-4/chat_template-26B-A4B-it.jinja
       #LLAMA_ARG_MMPROJ: /models/gemma-4/gemma-4-26B-A4B-mmproj-BF16.gguf
-      #LLAMA_ARG_SPEC_DRAFT_MODEL: /models/gemma-4/mtp-gemma-4-26B-A4B-it.gguf
-      #LLAMA_ARG_SPEC_TYPE: draft-mtp        # --spec-type draft-mtp
-      #LLAMA_ARG_SPEC_DRAFT_N_MAX: 2         # --spec-draft-n-max 2 (adjust 2–3 if you want)
+      LLAMA_ARG_SPEC_DRAFT_MODEL: /models/gemma-4/mtp-gemma-4-26B-A4B-it.gguf
+      LLAMA_ARG_SPEC_TYPE: draft-mtp        # --spec-type draft-mtp
+      LLAMA_ARG_SPEC_DRAFT_N_MAX: 2         # --spec-draft-n-max 2 (adjust 2–3 if you want)
 
 
       #----------------------------  GEMMA-4-31B  ----------------------------#
@@ -119,7 +119,8 @@ services:
 
       #LLAMA_ARG_CTX_SIZE: 131072
       #LLAMA_ARG_CTX_SIZE: 222222
-      #LLAMA_ARG_CTX_SIZE: 65536
+      LLAMA_ARG_CTX_SIZE: 65536
+      #LLAMA_ARG_CTX_SIZE: 32768
 
 
       # QWENS
@@ -159,12 +160,12 @@ services:
 
 
       # QWEN3.8
-      LLAMA_ARG_MODEL: /models/Qwen3.8-27B-UD-Q5_K_S.gguf
-      LLAMA_ARG_SPEC_DRAFT_MODEL: /models/mtp-Qwen3.8-27B-Q4_0.gguf
-      LLAMA_ARG_MMPROJ: /models/mmproj-BF16-Qwen3.8-27B.gguf
-      LLAMA_ARG_CHAT_TEMPLATE_FILE: /models/chat-template-Qwen3.8-27B.jinja
-      LLAMA_ARG_SPEC_TYPE: draft-mtp        # --spec-type draft-mtp
-      LLAMA_ARG_SPEC_DRAFT_N_MAX: 2         # --spec-draft-n-max 2 (adjust 2–3 if you want)
+      #LLAMA_ARG_MODEL: /models/Qwen3.8-27B-UD-Q5_K_S.gguf
+      #LLAMA_ARG_SPEC_DRAFT_MODEL: /models/mtp-Qwen3.8-27B-Q4_0.gguf
+      ##LLAMA_ARG_MMPROJ: /models/mmproj-BF16-Qwen3.8-27B.gguf
+      #LLAMA_ARG_CHAT_TEMPLATE_FILE: /models/chat-template-Qwen3.8-27B.jinja
+      #LLAMA_ARG_SPEC_TYPE: draft-mtp        # --spec-type draft-mtp
+      #LLAMA_ARG_SPEC_DRAFT_N_MAX: 2         # --spec-draft-n-max 2 (adjust 2–3 if you want)
 
 
 

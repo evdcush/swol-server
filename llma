@@ -10,8 +10,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SERVICE = "llama-cpp"
-DEFAULT_CTX = 65536
-PICK_TIMEOUT = 4
+#DEFAULT_CTX = 65536
+
+DEFAULT_CTX_CHOICES = (
+         0, # (unset, use model default)
+      8192, # 2**13
+     32768, # 2**15
+     65536, # 2**16
+    131072, # 2**17
+    262144, # 2**18
+)
+
+PICK_TIMEOUT = 5
 
 GEMMA_SAMPLING = (1.0, 0.95, 64)
 #QWEN_SAMPLING = (0.75, 0.95, 20)  # (1.0, 0.95, 20)  # for 3.8
@@ -628,7 +638,7 @@ def apply(
     ]
 
     env["LLAMA_ARG_MODEL"] = model.model
-    if args.ctx is not None:
+    if args.ctx:
         ctx = str(args.ctx)
         env["LLAMA_ARG_CTX_SIZE"] = ctx
     #env["LLAMA_ARG_CTX_SIZE"] = str(args.ctx or DEFAULT_CTX)
@@ -871,9 +881,13 @@ def parser() -> argparse.ArgumentParser:
         "--ctx",
         type=int,
         metavar="N",
-        default=None,
+        #default=None,
         #help=f"context size (default {DEFAULT_CTX})",
-        help=f"context size (default none)",
+        #default=262144,
+        default=0,
+        #choices=[8192, 32768, 65536, 131072, 262144]
+        choices=DEFAULT_CTX_CHOICES,
+        help=f"context size, choices:{DEFAULT_CTX_CHOICES}",
     )
 
     u.add_argument(
