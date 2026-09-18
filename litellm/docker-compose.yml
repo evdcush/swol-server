@@ -1,7 +1,7 @@
 name: litellm
 
 # Start:
-#   docker compose -f litellm.compose.yaml up -d
+#   docker compose up -d --build
 #
 # Docker apps:  OPENAI_API_BASE_URL=http://litellm:4000/v1
 # Host apps:    OPENAI_API_BASE_URL=http://127.0.0.1:4000/v1
@@ -17,7 +17,7 @@ networks:
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:latest #v1.89.0
+    build: .
     container_name: litellm
     restart: unless-stopped
     command: ["--config", "/app/config.yaml", "--port", "4000"]
@@ -69,6 +69,8 @@ configs:
 
       litellm_settings:
         drop_params: true
+        callbacks:
+          - pdf_text_hook.handler
 
       router_settings:
         model_group_alias:
