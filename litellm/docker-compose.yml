@@ -38,18 +38,68 @@ services:
     #  start_period: 30s
     healthcheck:
       disable: true
+    environment:
+      LITELLM_OTEL_V2: "true"
+      OTEL_EXPORTER: otlp_http
+      OTEL_ENDPOINT: http://mlflow:5000/v1/traces
+      OTEL_HEADERS: x-mlflow-experiment-id=${MLFLOW_EXPERIMENT_ID_LITELLM}
+      OTEL_SERVICE_NAME: litellm
+      OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: span_and_event #no_content
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
 
 configs:
   litellm-config:
     content: |
       model_list:
+        # Muse's explicit local target. Capabilities are declared because this
+        # custom OpenAI-compatible model is not in LiteLLM's hosted model map.
+        - model_name: muse-local
+          litellm_params:
+            model: openai/swol-doge
+            api_base: http://llama-cpp:8080/v1
+            api_key: ${LLAMA_CPP_API_KEY:-ayyylmao}
+            timeout: 600
+          model_info:
+            mode: chat
+            max_input_tokens: 65536
+            max_output_tokens: 16384
+            input_cost_per_token: 0
+            output_cost_per_token: 0
+            supports_system_messages: true
+            supports_function_calling: true
+            supports_tool_choice: true
+            supports_parallel_function_calling: false
+            supports_response_schema: true
+            supports_reasoning: true
+            supported_openai_params:
+              - messages
+              - temperature
+              - top_p
+              - max_tokens
+              - max_completion_tokens
+              - tools
+              - tool_choice
+              - parallel_tool_calls
+              - response_format
+              - reasoning_effort
+
         - model_name: swol-doge
           litellm_params:
             model: openai/swol-doge
             api_base: http://llama-cpp:8080/v1
-            api_key: none
+            api_key: ${LLAMA_CPP_API_KEY:-ayyylmao}
+            timeout: 600
           model_info:
             mode: chat
+            #input_cost_per_token: 0
+            #output_cost_per_token: 0
+            supports_system_messages: true
+            supports_function_calling: true
+            supports_tool_choice: true
+            supports_parallel_function_calling: false
+            supports_response_schema: true
+            supports_reasoning: true
 
         - model_name: swol-doge-embed
           litellm_params:
@@ -73,7 +123,13 @@ configs:
           - pdf_text_hook.handler
 
       router_settings:
+        num_retries: 0
         model_group_alias:
+          # Drop-in compatibility for Muse's previous paid model targets.
+          gpt-5.6-sol: muse-local
+          gpt-5.6-sol-high: muse-local
+          gpt-5.6-luna: muse-local
+
           # common served model -> local chat model group
           gpt-5.5: swol-doge
           gpt-5.5-pro: swol-doge
