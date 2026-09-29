@@ -40,11 +40,20 @@ services:
       disable: true
     environment:
       LITELLM_OTEL_V2: "true"
+
       OTEL_EXPORTER: otlp_http
       OTEL_ENDPOINT: http://mlflow:5000/v1/traces
       OTEL_HEADERS: x-mlflow-experiment-id=${MLFLOW_EXPERIMENT_ID_LITELLM}
       OTEL_SERVICE_NAME: litellm
-      OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: span_and_event #no_content
+
+      # Put GenAI input/output on the root request span so MLflow's
+      # trace table populates its Input and Output columns.
+      USE_OTEL_LITELLM_REQUEST_SPAN: "false"
+
+      # Store message content once, as span attributes.
+      # Avoid SPAN_AND_EVENT, which emits the same content in both forms.
+      OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: SPAN_ONLY
+
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
 
