@@ -4,12 +4,17 @@ name: litellm
 #   docker compose up -d --build
 #
 # Docker apps:  OPENAI_API_BASE_URL=http://litellm:4000/v1
-# Host apps:    OPENAI_API_BASE_URL=http://127.0.0.1:4000/v1
+#   Host apps:  OPENAI_API_BASE_URL=http://127.0.0.1:4000/v1
+#
 # Tailscale:
 #   tailscale serve --bg --https=443 --set-path=/v1 http://127.0.0.1:4000/v1
 #   OPENAI_API_BASE_URL=https://mytailnet.ts.net/v1
 #
-# Native groups: swol-doge (chat), swol-doge-embed (embeddings), whisper-1 (STT)
+# Native local groups:
+#     swol-doge:       instruct-tuned chat model (generally + vision)
+#     swol-doge-embed: text embedding model (generally 768-dim)
+#     whisper-1:       whisper.cpp v3-large-turbo
+#     muse-local:      task-specialized swol-doge
 
 networks:
   ai-backend:
@@ -39,6 +44,7 @@ services:
     healthcheck:
       disable: true
     environment:
+      NVIDIA_NIM_API_KEY: ${NVIDIA_NIM_API_KEY}
       LITELLM_OTEL_V2: "true"
 
       OTEL_EXPORTER: otlp_http
@@ -125,6 +131,146 @@ configs:
             api_key: none
           model_info:
             mode: audio_transcription
+
+        #----------------------------  NVIDIA NIM  ---------------------------#
+        - model_name: nim-glm-5.3
+          litellm_params:
+            model: nvidia_nim/z-ai/glm-5.3
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 1048576
+            supports_vision: false
+            supports_reasoning: true
+            supports_function_calling: true
+            reasoning_effort_levels:
+              - low
+              - high
+              - max
+            metadata:
+              parameters_total: 753B
+              parameters_active: ~40B
+              input_modalities: [text]
+              thinking_disableable: false
+              reasoning_default: max
+
+        - model_name: nim-glm-5.3-flash
+          litellm_params:
+            model: nvidia_nim/z-ai/glm-5.3-flash
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 1048576
+            supports_vision: true
+            supports_reasoning: true
+            supports_function_calling: true
+            reasoning_effort_levels:
+              - low
+              - high
+              - max
+            metadata:
+              parameters_total: 320B
+              parameters_active: 18B
+              input_modalities: [text, image]
+              max_images_per_request: 8
+              thinking_disableable: false
+              reasoning_default: max
+
+        - model_name: nim-kimi-k3
+          litellm_params:
+            model: nvidia_nim/moonshotai/kimi-k3
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 1048576
+            supports_vision: true
+            supports_reasoning: true
+            supports_function_calling: true
+            supports_response_schema: true
+            reasoning_effort_levels:
+              - low
+              - high
+              - max
+            metadata:
+              parameters_total: 2.8T
+              parameters_active: 104B
+              input_modalities: [text, image]
+              thinking_disableable: false
+              reasoning_default: max
+              preserve_reasoning_history: true
+
+        - model_name: nim-nemotron-ultra
+          litellm_params:
+            model: nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 1048576
+            supports_vision: false
+            supports_reasoning: true
+            supports_function_calling: true
+            metadata:
+              parameters_total: 550B
+              parameters_active: 55B
+              input_modalities: [text]
+              thinking_disableable: true
+              reasoning_modes: [off, medium, full]
+              reasoning_default: full
+
+        - model_name: nim-nemotron-super
+          litellm_params:
+            model: nvidia_nim/nvidia/nemotron-3-super-120b-a12b
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 1048576
+            supports_vision: false
+            supports_reasoning: true
+            supports_function_calling: true
+            metadata:
+              parameters_total: 120B
+              parameters_active: 12B
+              input_modalities: [text]
+              thinking_disableable: true
+              reasoning_modes: [off, low, full]
+              reasoning_default: full
+
+        - model_name: nim-laguna-xs-2.1
+          litellm_params:
+            model: nvidia_nim/poolside/laguna-xs-2.1
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 262144
+            supports_vision: false
+            supports_reasoning: true
+            supports_function_calling: true
+            metadata:
+              parameters_total: 33B
+              parameters_active: 3B
+              input_modalities: [text]
+              thinking_disableable: true
+              reasoning_modes: [off, on]
+
+        - model_name: nim-deepseek-v4.1-flash
+          litellm_params:
+            model: nvidia_nim/deepseek-ai/deepseek-v4.1-flash
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+          model_info:
+            mode: chat
+            max_input_tokens: 1048576
+            supports_vision: true
+            supports_reasoning: true
+            supports_function_calling: true
+            supports_response_schema: true
+            metadata:
+              parameters_total: 552B
+              parameters_active_prefill: 8B
+              parameters_active_decode: 16B
+              input_modalities: [text, image]
+              thinking_disableable: false
+              reasoning_effort_range: 1-100
+              reasoning_default: 100
 
       litellm_settings:
         drop_params: true

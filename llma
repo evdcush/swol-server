@@ -139,15 +139,28 @@ GEMMA = [
 ]
 
 QWEN = [
+    # Model(
+    #     "q3827q5",
+    #     "3.8 27B Q5 MTP",
+    #     "qwen",
+    #     "/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q5_K_P.gguf",
+    #     QWEN_SAMPLING,
+    #     mmproj="/models/mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+    #     mtp="/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-FastMTP-32K.gguf",
+    #     chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+    #     mtp_nmax=4,
+    # ),
     Model(
-        "q3827q5",
-        "3.8 27B Q5_K_S MTP",
+        #"q3827q5",
+        'q3827',
+        "3.8 27B",
         "qwen",
-        "/models/Qwen3.8-27B-UD-Q5_K_S.gguf",
+        "/models/Qwen3.8-27B-UD-Q4_K_S.gguf",
         QWEN_SAMPLING,
         mmproj="/models/mmproj-BF16-Qwen3.8-27B.gguf",
         mtp="/models/mtp-Qwen3.8-27B-Q4_0.gguf",
-        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        #chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        chat_template='/models/chat-template-qwen3.8-muse.jinja',
         mtp_nmax=4,
     ),
     Model(
