@@ -1,4 +1,151 @@
 #!/usr/bin/env python3
+"""
+
+# THIS SHIT REALLY NEEDS A COMPLETE REFACTOR!
+it's unbelievably tedious.
+
+it needs to autopopulate models from the designated models dir.
+figure out:
+- model
+  - mmproj, mtp if applicable and available
+  - chat template, if applicable and available
+- sampling params
+  - temp, top-p, top-k
+- optional, additional properties or features of model, e.g.:
+  - context length
+  - thinking mode: can it be disabled?
+  - reasoning strength: low, high, xhigh, etc...
+  - etc.
+
+
+
+
+
+Model(
+        #"q3827q5",
+        'q3827',
+        "3.8 27B",
+        "qwen",
+        "/models/Qwen3.8-27B-UD-Q4_K_S.gguf",
+        #"/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-IQ4_XS.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-BF16-Qwen3.8-27B.gguf",
+        mtp="/models/mtp-Qwen3.8-27B-Q4_0.gguf",
+        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        #chat_template='/models/chat-template-qwen3.8-muse.jinja',
+        mtp_nmax=4,
+    ),
+
+
+Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf
+Qwen3-Embedding-4B-Q6_K.gguf
+Qwen3-Embedding-0.6B-Q8_0.gguf
+vibevoice-1.5b-q4_k_m.gguf
+Qwen3-VL-Embedding-2B-Q8_0.gguf
+chat_template.jinja
+Qwen3.5-0.8B-IQ4_NL.gguf
+jina-embeddings-v5-omni-small-retrieval-Q6_K.gguf
+jina-embeddings-v5-omni-small-retrieval-IQ4_NL.gguf
+jina-embeddings-v5-omni-small-retrieval-vision-mmproj-F16.gguf
+jina-embeddings-v5-omni-nano-retrieval-Q6_K.gguf
+jina-embeddings-v5-omni-nano-retrieval-vision-mmproj-F16.gguf
+jina-embeddings-v5-nano-retrieval-Q6_K.gguf
+jina-embeddings-v5-small-retrieval-Q6_K.gguf
+
+gemma-4-12B-Q8_0.gguf
+
+embeddinggemma-2-BF16.gguf
+
+humanizer-12b-Q8_0.gguf
+
+
+
+#=================================  QWEN3.8  =================================#
+
+# "official"
+chat_template='chat-template-Qwen3.8-27B.jinja'
+model='Qwen3.8-27B-UD-Q4_K_S.gguf'
+mmproj='mmproj-Qwen3.8-27B-BF16.gguf'
+mtp='mtp-Qwen3.8-27B-Q4_0.gguf'
+
+# "smol"
+chat_template='chat-template-Qwen3.8-27B.jinja'
+model='Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf'  # <--- has mtp baked-in already
+mmproj='mmproj-Qwen3.8-27B-BF16.gguf'
+#mtp='mtp-Qwen3.8-27B-Q4_0.gguf'
+
+# "uncensored"
+chat_template='chat-template-Qwen3.8-27B.jinja'
+model='Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-IQ4_XS.gguf'
+mmproj='mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf'
+mtp='Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-FastMTP-32K.gguf'
+
+
+
+
+
+
+    Model(
+        #"q3827q5",
+        'q3827',
+        "3.8 27B",
+        "qwen",
+        "/models/Qwen3.8-27B-UD-Q4_K_S.gguf",
+        #"/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-IQ4_XS.gguf",
+        QWEN_SAMPLING,
+        mmproj="/models/mmproj-BF16-Qwen3.8-27B.gguf",
+        mtp="/models/mtp-Qwen3.8-27B-Q4_0.gguf",
+        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        #chat_template='/models/chat-template-qwen3.8-muse.jinja',
+        mtp_nmax=4,
+    ),
+
+
+Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf
+Qwen3-Embedding-4B-Q6_K.gguf
+Qwen3-Embedding-0.6B-Q8_0.gguf
+vibevoice-1.5b-q4_k_m.gguf
+Qwen3-VL-Embedding-2B-Q8_0.gguf
+chat_template.jinja
+Qwen3.5-0.8B-IQ4_NL.gguf
+jina-embeddings-v5-omni-small-retrieval-Q6_K.gguf
+jina-embeddings-v5-omni-small-retrieval-IQ4_NL.gguf
+jina-embeddings-v5-omni-small-retrieval-vision-mmproj-F16.gguf
+jina-embeddings-v5-omni-nano-retrieval-Q6_K.gguf
+jina-embeddings-v5-omni-nano-retrieval-vision-mmproj-F16.gguf
+jina-embeddings-v5-nano-retrieval-Q6_K.gguf
+jina-embeddings-v5-small-retrieval-Q6_K.gguf
+
+gemma-4-12B-Q8_0.gguf
+
+embeddinggemma-2-BF16.gguf
+
+humanizer-12b-Q8_0.gguf
+
+
+
+#=================================  QWEN3.8  =================================#
+
+# "official"
+chat_template='chat-template-Qwen3.8-27B.jinja'
+model='Qwen3.8-27B-UD-Q4_K_S.gguf'
+mmproj='mmproj-Qwen3.8-27B-BF16.gguf'
+mtp='mtp-Qwen3.8-27B-Q4_0.gguf'
+
+# "smol"
+chat_template='chat-template-Qwen3.8-27B.jinja'
+model='Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf'  # <--- has mtp baked-in already
+mmproj='mmproj-Qwen3.8-27B-BF16.gguf'
+#mtp='mtp-Qwen3.8-27B-Q4_0.gguf'
+
+# "uncensored"
+chat_template='chat-template-Qwen3.8-27B.jinja'
+model='Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-IQ4_XS.gguf'
+mmproj='mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf'
+mtp='Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-FastMTP-32K.gguf'
+
+
+"""
 
 import argparse
 import json
@@ -14,11 +161,15 @@ SERVICE = "llama-cpp"
 
 DEFAULT_CTX_CHOICES = (
          0, # (unset, use model default)
+      4096, # 2**12
       8192, # 2**13
+     16384, # 2**14
      32768, # 2**15
      65536, # 2**16
     131072, # 2**17
     262144, # 2**18
+    524288, # 2**19
+   1048576, # 2**20
 )
 
 PICK_TIMEOUT = 5
@@ -26,7 +177,10 @@ PICK_TIMEOUT = 5
 GEMMA_SAMPLING = (1.0, 0.95, 64)
 #QWEN_SAMPLING = (0.75, 0.95, 20)  # (1.0, 0.95, 20)  # for 3.8
 QWEN_SAMPLING = (1.0, 0.95, 20)  # for 3.8
-OTHER_SAMPLING = (0.75, 0.95, 33)
+#OTHER_SAMPLING = (0.75, 0.95, 33)
+OTHER_SAMPLING = (1.0, 0.95, 64)
+#--temp 1.0 --top-p 0.95 --top-k 64
+
 
 # These are the only llama.cpp env keys llma owns.
 OWNED_ENV = {
@@ -139,93 +293,38 @@ GEMMA = [
 ]
 
 QWEN = [
-    # Model(
-    #     "q3827q5",
-    #     "3.8 27B Q5 MTP",
-    #     "qwen",
-    #     "/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q5_K_P.gguf",
-    #     QWEN_SAMPLING,
-    #     mmproj="/models/mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
-    #     mtp="/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-FastMTP-32K.gguf",
-    #     chat_template="/models/chat-template-Qwen3.8-27B.jinja",
-    #     mtp_nmax=4,
-    # ),
     Model(
-        #"q3827q5",
-        'q3827',
-        "3.8 27B",
-        "qwen",
+        # DEFAULT
+        'q38-27-q4', "3.8 27B Q4_K_S", "qwen",
         "/models/Qwen3.8-27B-UD-Q4_K_S.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-BF16-Qwen3.8-27B.gguf",
+        (1.0, 0.95, 20),  # <--- default sampling for 3.80-27
+        mmproj='/models/mmproj-Qwen3.8-27B-BF16.gguf',
         mtp="/models/mtp-Qwen3.8-27B-Q4_0.gguf",
-        #chat_template="/models/chat-template-Qwen3.8-27B.jinja",
-        chat_template='/models/chat-template-qwen3.8-muse.jinja',
-        mtp_nmax=4,
+        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        #chat_template='/models/chat-template-qwen3.8-muse.jinja',
+        mtp_nmax=2, #4,
     ),
     Model(
-        "q27",
-        "27B Q6_K MTP  [default]",
-        "qwen",
-        "/models/Qwen3.6-27B-Q6_K.MTP.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-27B-Q6_K.MTP.gguf",
+        # SMOL
+        'q38-27-GSQ-RCO-IQ3_S', "3.8 27B IQ3", "qwen",
+        "/models/Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf",
+        (1.0, 0.95, 20),  # <--- default sampling for 3.80-27
+        mmproj='/models/mmproj-Qwen3.8-27B-BF16.gguf',
         mtp_inline=True,
+        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        #chat_template='/models/chat-template-qwen3.8-muse.jinja',
+        mtp_nmax=3,
+    ),
+    Model(
+        # UNCENSOR
+        'q38-27-uncensored', "3.8 27B uncensored IQ4_XS", "qwen",
+        "/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-IQ4_XS.gguf",
+        (1.0, 0.95, 20),  # <--- default sampling for 3.80-27
+        mmproj='/models/mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf',
+        mtp="/models/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-FastMTP-32K.gguf",
+        chat_template="/models/chat-template-Qwen3.8-27B.jinja",
+        #chat_template='/models/chat-template-qwen3.8-muse.jinja',
         mtp_nmax=4,
-    ),
-    Model(
-        "q27q5",
-        "27B Q5_K_S MTP",
-        "qwen",
-        "/models/Qwen3.6-27B-Q5_K_S.MTP.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-27B-Q6_K.MTP.gguf",
-        mtp_inline=True,
-        mtp_nmax=4,
-    ),
-    Model(
-        "q27iq4",
-        "27B IQ4_NL MTP",
-        "qwen",
-        "/models/Qwen3.6-27B-IQ4_NL.MTP.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-27B-Q6_K.MTP.gguf",
-        mtp_inline=True,
-        mtp_nmax=4,
-    ),
-    Model(
-        "q35",
-        "35B-A3B MXFP4 MOE MTP",
-        "qwen",
-        "/models/Qwen3.6-35B-A3B-MXFP4_MOE.MTP.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf",
-        mtp_inline=True,
-        mtp_nmax=6,
-    ),
-    Model(
-        "q27u6",
-        "27B Uncensored Q6_K_P",
-        "qwen",
-        "/models/Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q6_K_P.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-f16.gguf",
-    ),
-    Model(
-        "q27u4",
-        "27B Uncensored Q4_K_P",
-        "qwen",
-        "/models/Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-f16.gguf",
-    ),
-    Model(
-        "q35u",
-        "35B-A3B Uncensored Q4_K_M",
-        "qwen",
-        "/models/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
-        QWEN_SAMPLING,
-        mmproj="/models/mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf",
     ),
 ]
 
@@ -459,9 +558,10 @@ def pick_one(
 
 def choose_family() -> str:
     options = [
-        "DEFAULT — Gemma 4 26B A4B + MMPROJ + MTP",
+        #"DEFAULT — fucking OLD duno FIXME Gemma 4 26B A4B + MMPROJ + MTP",
+        "DEFAULT: Qwen3.8-27B-Q4 + MTP",
         "Gemma 4…",
-        "Qwen 3.6…",
+        "Qwen",
         "Other model…",
     ]
 
@@ -733,8 +833,11 @@ def up(
             family = choose_family()
 
         if family == "default":
-            model = GEMMA[0]
-            extras = args.extras or "both"
+            print('DEFAULT:')
+            model = QWEN[0] #GEMMA[0]
+            print(model)
+            #extras = args.extras or "both"
+            extras = 'mtp',
 
         elif family == "gemma":
             model = choose_model(
@@ -746,7 +849,7 @@ def up(
         elif family == "qwen":
             model = choose_model(
                 QWEN,
-                "Qwen 3.6 model",
+                "Qwen 3.8 model",
             )
             extras = args.extras or choose_extras(model)
 
