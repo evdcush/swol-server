@@ -3,17 +3,26 @@ name: llama-cpp-embed
 networks:
   ai-backend:
     external: true
-  #codex-shared:
-  #  external: true
+  codex-shared:
+    external: true
 
 
 services:
   llama-cpp-embed:
+  #embed:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    #container_name: embedding
     environment:
       # REQUIRED: replace with the EXACT filename you want to serve
-      LLAMA_ARG_EMBEDDINGS: true
-      LLAMA_ARG_POOLING: last
+      #LLAMA_ARG_EMBEDDINGS: true
+      #LLAMA_ARG_POOLING: mean #last
+
+      LLAMA_ARG_EMBEDDINGS: "true"
+      LLAMA_ARG_POOLING: mean
+      LLAMA_ARG_CTX_SIZE: 8192
+      LLAMA_ARG_BATCH: 4096
+      LLAMA_ARG_UBATCH: 4096
+
       #LLAMA_ARG_MODEL: /models/Qwen3-Embedding-0.6B-Q8_0.gguf  # EMBED DIM: 1024
       #LLAMA_ARG_MODEL: /models/jina-embeddings-v5-omni-small-retrieval-Q6_K.gguf  # 1024
 
@@ -22,10 +31,11 @@ services:
 
       #LLAMA_ARG_MODEL: /models/jina-embeddings-v5-omni-small-retrieval-Q6_K.gguf
 
-      LLAMA_ARG_MODEL:  /models/jina-embeddings-v5-omni-nano-retrieval-Q6_K.gguf  # 768
-      LLAMA_ARG_MMPROJ: /models/jina-embeddings-v5-omni-nano-retrieval-vision-mmproj-F16.gguf
+      #LLAMA_ARG_MODEL:  /models/jina-embeddings-v5-omni-nano-retrieval-Q6_K.gguf  # 768
+      #LLAMA_ARG_MMPROJ: /models/jina-embeddings-v5-omni-nano-retrieval-vision-mmproj-F16.gguf
+      LLAMA_ARG_MODEL: /models/embeddinggemma-2-BF16.gguf  # 768
 
-      LLAMA_ARG_CTX_SIZE: 8192
+      #LLAMA_ARG_CTX_SIZE: 8192
 
       LLAMA_ARG_ALIAS: swol-doge
 
@@ -53,7 +63,7 @@ services:
       # which gpu ID to select (when split mode is none and multiple gpu avail)
       # i have dual gpu ('cuda:0', 'cuda:1'), so i set to the second for
       # single-gpu use
-      LLAMA_ARG_MAIN_GPU: 0 # --main-gpu
+      LLAMA_ARG_MAIN_GPU: 1  # --main-gpu
 
       # optional metrics endpoint
       LLAMA_ARG_ENDPOINT_METRICS: 1
@@ -79,6 +89,6 @@ services:
 
     networks:
       - ai-backend
-      #- codex-shared
+      - codex-shared
 
     restart: unless-stopped
