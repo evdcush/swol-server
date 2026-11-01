@@ -63,6 +63,8 @@ services:
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
 
+      LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY: true
+
 configs:
   litellm-config:
     content: |
@@ -285,25 +287,3 @@ configs:
           gpt-5.6-sol-high: muse-local
           gpt-5.6-luna: muse-local
 
-          # common served model -> local chat model group
-          gpt-5.5: swol-doge
-          gpt-5.5-pro: swol-doge
-          gpt-5.4: swol-doge
-          gpt-5.4-mini: swol-doge
-          gpt-5.4-nano: swol-doge
-          claude-opus-4.8: swol-doge
-          claude-sonnet-4.6: swol-doge
-          claude-haiku-4.5: swol-doge
-          glm-5.2: swol-doge
-          glm-5.1: swol-doge
-          gemma-4-31b: swol-doge
-          gemma-4-26b: swol-doge
-          qwen3.6-plus: swol-doge
-          deepseek-v4-pro: swol-doge
-          deepseek-v4-flash: swol-doge
-          mistral-large: swol-doge
-          mistral-medium-3.5: swol-doge
-          kimi-k2.6: swol-doge
-          minimax-m2.7: swol-doge
-
-          text-embedding-3-small: swol-doge-embed
