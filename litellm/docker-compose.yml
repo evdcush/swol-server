@@ -69,6 +69,49 @@ configs:
   litellm-config:
     content: |
       model_list:
+        #===========================  LOCAL MODELS  ==========================#
+        - model_name: swol-doge
+          litellm_params:
+            model: openai/swol-doge
+            api_base: http://llama-cpp:8080/v1
+            api_key: ${LLAMA_CPP_API_KEY:-ayyylmao}
+            timeout: 600
+          model_info:
+            mode: chat
+            #input_cost_per_token: 0
+            #output_cost_per_token: 0
+            supports_system_messages: true
+            supports_function_calling: true
+            supports_tool_choice: true
+            supports_parallel_function_calling: false
+            supports_response_schema: true
+            supports_reasoning: true
+
+        - model_name: swol-doge-embed
+          litellm_params:
+            model: openai/swol-doge
+            api_base: http://llama-cpp-embed:8081/v1
+            api_key: none
+          model_info:
+            mode: embedding
+
+        - model_name: swol-doge-rerank
+          litellm_params:
+            model: hosted_vllm/swol-doge-rerank   # NOTE IT'S "hosted_vllm" HERE FOR OPENVIKING!
+            api_base: http://llama-cpp-rerank:8082/v1
+          model_info:
+            mode: rerank
+
+        - model_name: whisper-1
+          litellm_params:
+            model: openai/whisper-1
+            api_base: http://llama-cpp-speech:8195/v1
+            api_key: none
+          model_info:
+            mode: audio_transcription
+
+
+        #--------------------------  SPECIAL MODELS  -------------------------#
         # Muse's explicit local target. Capabilities are declared because this
         # custom OpenAI-compatible model is not in LiteLLM's hosted model map.
         - model_name: muse-local
@@ -101,38 +144,7 @@ configs:
               - response_format
               - reasoning_effort
 
-        - model_name: swol-doge
-          litellm_params:
-            model: openai/swol-doge
-            api_base: http://llama-cpp:8080/v1
-            api_key: ${LLAMA_CPP_API_KEY:-ayyylmao}
-            timeout: 600
-          model_info:
-            mode: chat
-            #input_cost_per_token: 0
-            #output_cost_per_token: 0
-            supports_system_messages: true
-            supports_function_calling: true
-            supports_tool_choice: true
-            supports_parallel_function_calling: false
-            supports_response_schema: true
-            supports_reasoning: true
-
-        - model_name: swol-doge-embed
-          litellm_params:
-            model: openai/swol-doge
-            api_base: http://llama-cpp-embed:8081/v1
-            api_key: none
-          model_info:
-            mode: embedding
-
-        - model_name: whisper-1
-          litellm_params:
-            model: openai/whisper-1
-            api_base: http://llama-cpp-speech:8195/v1
-            api_key: none
-          model_info:
-            mode: audio_transcription
+        #=========================  EXTERNAL MODELS  =========================#
 
         #----------------------------  NVIDIA NIM  ---------------------------#
         - model_name: nim-glm-5.3
@@ -275,7 +287,6 @@ configs:
               reasoning_default: 100
 
       litellm_settings:
-        drop_params: true
         callbacks:
           - pdf_text_hook.handler
 
@@ -286,4 +297,3 @@ configs:
           gpt-5.6-sol: muse-local
           gpt-5.6-sol-high: muse-local
           gpt-5.6-luna: muse-local
-
