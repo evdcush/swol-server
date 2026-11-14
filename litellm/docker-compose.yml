@@ -87,6 +87,30 @@ configs:
             supports_response_schema: true
             supports_reasoning: true
 
+        - model_name: swol-doge-fast
+          litellm_params:
+            model: openai/swol-doge
+            api_base: http://llama-cpp:8080/v1
+            api_key: ${LLAMA_CPP_API_KEY:-ayyylmao}
+            timeout: 600
+            temperature: 0.7
+            extra_body:
+              top_k: 20
+              min_p: 0.0
+              presence_penalty: 1.5
+              repeat_penalty: 1.0
+              reasoning_effort: none
+              chat_template_kwargs:
+                enable_thinking: false
+          model_info:
+            mode: chat
+            supports_system_messages: true
+            supports_function_calling: true
+            supports_tool_choice: true
+            supports_parallel_function_calling: false
+            supports_response_schema: true
+            supports_reasoning: false
+
         - model_name: swol-doge-embed
           litellm_params:
             model: openai/swol-doge
@@ -144,6 +168,7 @@ configs:
               - response_format
               - reasoning_effort
 
+
         #=========================  EXTERNAL MODELS  =========================#
 
         #----------------------------  NVIDIA NIM  ---------------------------#
@@ -151,6 +176,7 @@ configs:
           litellm_params:
             model: nvidia_nim/z-ai/glm-5.3
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 1048576
@@ -172,6 +198,7 @@ configs:
           litellm_params:
             model: nvidia_nim/z-ai/glm-5.3-flash
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 1048576
@@ -192,8 +219,9 @@ configs:
 
         - model_name: nim-kimi-k3
           litellm_params:
-            model: nvidia_nim/moonshotai/kimi-k3
+            model: nvidia_nim/moonshotai/kimi-k3.1-pro
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 1048576
@@ -213,10 +241,35 @@ configs:
               reasoning_default: max
               preserve_reasoning_history: true
 
+        - model_name: nim-mistral-large-4-1t-a52b
+          litellm_params:
+            model: nvidia_nim/mistralai/mistral-large-4-1t-a52b
+            api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
+          model_info:
+            mode: chat
+            max_input_tokens: 262144
+            supports_vision: true
+            supports_reasoning: true
+            supports_function_calling: true
+            supports_response_schema: true
+            reasoning_effort_levels:
+              - low
+              - medium
+              - high
+            metadata:
+              parameters_total: 1050B
+              parameters_active: 52B
+              input_modalities: [text, image]
+              thinking_disableable: false
+              reasoning_default: high
+              preserve_reasoning_history: true
+
         - model_name: nim-nemotron-ultra
           litellm_params:
             model: nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 1048576
@@ -235,6 +288,7 @@ configs:
           litellm_params:
             model: nvidia_nim/nvidia/nemotron-3-super-120b-a12b
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 1048576
@@ -253,6 +307,7 @@ configs:
           litellm_params:
             model: nvidia_nim/poolside/laguna-xs-2.1
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 262144
@@ -270,6 +325,7 @@ configs:
           litellm_params:
             model: nvidia_nim/deepseek-ai/deepseek-v4.1-flash
             api_key: os.environ/NVIDIA_NIM_API_KEY
+            max_parallel_requests: 1
           model_info:
             mode: chat
             max_input_tokens: 1048576
