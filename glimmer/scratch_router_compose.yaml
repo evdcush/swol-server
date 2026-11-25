@@ -1,0 +1,60 @@
+name: llamacpp
+
+# SERVING:
+#   NB: serving is done through litellm; llama.cpp does not externally serve!
+# tailscale serve --bg --https=443 --set-path=/llama http://127.0.0.1:8080
+#   ACCESS: https://mytailnet.tail3cf3cf.ts.net/llama/v1
+#
+# The server intentionally starts with no model loaded. Muse owns the model
+# lifecycle through POST /models/load and POST /models/unload so music gen
+# models can have exclusive use of both GPUs during song generation.
+
+networks:
+  ai-backend:
+    external: true
+  ext-shared:
+    external: true
+
+services:
+  llama-cpp:
+    image: ${LLAMA_CPP_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+
+    environment:
+      # Omitting LLAMA_ARG_MODEL starts llama-server in router mode. Automatic
+      # loading is disabled so an unrelated OpenAI client cannot claim the GPUs
+      # while music models generate.
+      LLAMA_ARG_MODELS_PRESET: /config/models.ini
+      LLAMA_ARG_MODELS_MAX: 1
+      LLAMA_ARG_MODELS_AUTOLOAD: false
+
+      #LLAMA_API_KEY: ${LLAMA_CPP_API_KEY:-ayyylmao}
+
+      LLAMA_ARG_HOST: 0.0.0.0
+      LLAMA_ARG_PORT: 8080
+      LLAMA_ARG_TIMEOUT: 600
+      LLAMA_ARG_ENDPOINT_METRICS: 1
+
+    volumes:
+      - ./models.ini:/config/models.ini:ro
+      - $HOME/Models/GGUFZ:/models:ro
+
+    ipc: host
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    healthcheck:
+      disable: true
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0', '1']
+              capabilities: [gpu]
+
+    networks:
+      - ai-backend
+      - ext-shared
+
+    restart: unless-stopped

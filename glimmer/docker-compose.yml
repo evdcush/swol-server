@@ -1,0 +1,105 @@
+name: llamacpp
+
+# ACCESS:
+#   INTERNAL (docker): http://llama-cpp:8080/v1
+#   HOST: http://127.0.0.1:8080/v1
+#
+# TEST:
+#   curl -s http://127.0.0.1:8080/v1/chat/completions \
+#   -H 'Content-Type: application/json' -d \
+#   '{"model": "swol-doge-glimmer", "messages": [{"role":"user","content":"sup dawg"}]}' \
+#   | jq .
+
+networks:
+  ai-backend:
+    external: true
+  ext-shared: # to share the service with containers that use external services
+    external: true
+
+services:
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    # -------------------------------------------------------------------------
+    command: >
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
+
+    # -------------------------------------------------------------------------
+    environment:
+      #===  MODEL
+      LLAMA_ARG_MODEL: /models/Muse-Glimmer-30B-KQuant-Dynamic-Q4_K_XL.gguf
+
+      #===  MMPROJ
+      #LLAMA_ARG_MMPROJ: /models/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf
+
+      #===  SPEC
+      #LLAMA_ARG_SPEC_DRAFT_MODEL: /models/dflash-Muse-Glimmer-30B-Q4_K_M.gguf
+      #LLAMA_ARG_SPEC_TYPE: draft-dflash
+      #LLAMA_ARG_SPEC_DRAFT_N_MAX: 5         # --spec-draft-n-max 2 (adjust 2–3 if you want)
+
+      LLAMA_ARG_CHAT_TEMPLATE_FILE: /models/chat_template.muse-glimmer-30b.jinja
+
+      LLAMA_ARG_CACHE_TYPE_K: q8_0
+      LLAMA_ARG_CACHE_TYPE_V: q8_0
+
+      LLAMA_ARG_CTX_SIZE: 131072
+
+      LLAMA_ARG_FLASH_ATTN: on
+
+      # SERVER CONFIG
+      # =============
+      LLAMA_ARG_ALIAS: swol-doge-glimmer
+      #LLAMA_API_KEY: ayyylmao  # just some bullshit dummy key
+      LLAMA_ARG_JINJA: true
+
+      # server bind / API shit
+      LLAMA_ARG_HOST: 0.0.0.0
+      LLAMA_ARG_PORT: 8080
+
+      # optional metrics endpoint
+      LLAMA_ARG_ENDPOINT_METRICS: 1
+
+      # DEVICE SETTINGS
+      # ===============
+      LLAMA_ARG_N_PARALLEL: 1 #2
+      LLAMA_ARG_N_GPU_LAYERS: auto #all  # --n-gpu-layers
+
+      #===  NUMBER OF GPU DEVICES TO USE
+      # `--split-mode`
+      # how to split model across multuiple gpus, opts:
+      #     none :  use one gpu only
+      #     layer : (DEFAULT) split layers and KV across gpus
+      #     row :   split rows across GPus
+      #LLAMA_ARG_SPLIT_MODE: none  # --split-mode
+      LLAMA_ARG_SPLIT_MODE: layer  # --split-mode
+
+      #===  GPU device (by ID) to use when single-gpu (i.e. --split-mode none)
+      LLAMA_ARG_MAIN_GPU: 0  # --main-gpu
+
+    # -------------------------------------------------------------------------
+    volumes:
+      # bind directly to usert space GGUF models dir (read-only)
+      - $HOME/Models/GGUFZ:/models:ro
+
+    ipc: host
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    networks:
+      - ai-backend
+      - ext-shared
+
+    restart: unless-stopped
+
+    healthcheck:
+      disable: true
+    # -------------------------------------------------------------------------
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0', '1']
+              capabilities: [gpu]
+
