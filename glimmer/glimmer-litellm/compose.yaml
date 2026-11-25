@@ -1,6 +1,5 @@
 name: litellm
 
-  # FOR EXTERNAL AHIT
 # Start:
 #   docker compose up -d --build
 #
@@ -10,12 +9,6 @@ name: litellm
 # Tailscale:
 #   tailscale serve --bg --https=443 --set-path=/v1 http://127.0.0.1:4000/v1
 #   OPENAI_API_BASE_URL=https://mytailnet.ts.net/v1
-#
-# Native local groups:
-#     swol-doge:       instruct-tuned chat model (generally + vision)
-#     swol-doge-embed: text embedding model (generally 768-dim)
-#     whisper-1:       whisper.cpp v3-large-turbo
-#     muse-local:      task-specialized swol-doge
 
 networks:
   ai-backend:
